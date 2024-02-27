@@ -1,6 +1,6 @@
 # maze_builder
 
-A maze builder algorithm made in python. I did it based on [this](https://stackoverflow.com/questions/29739751/implementing-a-randomly-generated-maze-using-prims-algorithm/29758926#29758926) stackoverflow post. 
+A maze builder algorithm made in python. It was made inspired on [this stackoverflow post](https://stackoverflow.com/questions/29739751/implementing-a-randomly-generated-maze-using-prims-algorithm/29758926#29758926). 
 
 The main logic is in the dig method in the class Maze. Once provided with a list of `frontiers` to explore, the algorithm will dig a maze, walking 2 steps into a random valid direction.
 
