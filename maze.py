@@ -32,7 +32,6 @@ This assures that when looking for a new neighbor, the rejected neighbor cells d
 It is a simple way to avoid adding the same cell to the frontiers list multiple times.
 It also avoids adding cells that are already part of the maze.
 """
-
 import sys
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D, lineMarkers
@@ -46,6 +45,7 @@ rng = random.Random()
 MINIMUM_PYTHON_VERSION = (3, 8)
 if sys.version_info < MINIMUM_PYTHON_VERSION:
     raise SystemExit(f"This script requires Python {'.'.join([str(i) for i in MINIMUM_PYTHON_VERSION])} or higher.")
+
 
 class Cell(Enum):
     PASSAGE = auto()
@@ -76,7 +76,6 @@ class Maze:
         self._grid = self._generate_empty_grid()
         self.verbose = verbose # Set to True to print the dig process
         self.debug_plot = debug_plot # Set to True to plot the maze dig process
-        self.start_cells = []
 
     def reset(self):
         """Reset the maze grid."""
@@ -86,13 +85,24 @@ class Maze:
         """Generate an empty grid."""
         return [[Cell.WALL for _ in range(self.width)] for _ in range(self.height)]
 
-    def set_cell(self, cells:list, ctype:Cell):
+    def set_cells(self, cells:list, ctype:Cell):
         """Set a cell (or a list of cells) in the maze grid."""
         if len(cells) != 0:
             if self.verbose:
                 print(f"Setting {ctype.name} cells: {cells}")
             for x, y in cells:
                 self._grid[y][x] = ctype
+
+    def set_range(self, xiyixfyf:tuple, ctype:Cell):
+        """Set a range of the maze grid."""
+        if len(xiyixfyf) == 4 and xiyixfyf[0] < xiyixfyf[2] and xiyixfyf[1] < xiyixfyf[3]:
+            if self.verbose:
+                print(f"Setting range {ctype.name} cells: {xiyixfyf}")
+            for x in range(xiyixfyf[0], xiyixfyf[2]):
+                for y in range(xiyixfyf[1], xiyixfyf[3]):
+                    self._grid[y][x] = ctype
+        else:
+            raise ValueError("Invalid range")
 
     def is_legal(self, x, y):
         """ Check if the coordinates are within the maze.
@@ -139,6 +149,15 @@ class Maze:
         else:
             raise ValueError("Invalid path")
 
+    def _draw_border(self):
+        """Draw a border around the maze with hardwall."""
+        for y in range(self.height):
+            self._grid[y][0] = Cell.HARDWALL
+            self._grid[y][self.width-1] = Cell.HARDWALL
+        for x in range(1,self.width-1):
+            self._grid[0][x] = Cell.HARDWALL
+            self._grid[self.height-1][x] = Cell.HARDWALL
+
     def _dig(self, frontiers:list):
         """
         Dig the maze.
@@ -181,13 +200,6 @@ class Maze:
                         plt.imshow(self._grid, cmap='gray_r', origin='lower')
                     if self.verbose:
                         print(f"current_cell: {current_cell}; new_cell: {new_cell}; frontiers no: {len(frontiers)}")
-        # close border:
-        for y in range(self.height):
-            self._grid[y][0] = Cell.HARDWALL
-            self._grid[y][self.width-1] = Cell.HARDWALL
-        for x in range(1,self.width-1):
-            self._grid[0][x] = Cell.HARDWALL
-            self._grid[self.height-1][x] = Cell.HARDWALL
 
     def image(self):
         """Plot the maze."""
@@ -267,10 +279,10 @@ class Maze:
         self._dig(frontiers)
 
 
-def generate_maze(width,
-                  height,
+def generate_maze(dim,
                   verbose=False,
                   frontiers=[],
+                  hardwall_border=True,
                   pre_paint={"start":[],
                              "passage":[],
                              "wall":[],
@@ -292,8 +304,8 @@ def generate_maze(width,
                              "wormhole_d":[],
                              "wormhole_e":[],
                              "wormhole_f":[]}):
-    # Create a maze
-    maze = Maze(width, height, verbose=verbose)
+    # Create a new maze instance
+    maze = Maze(width=dim[0], height=dim[1], verbose=verbose)
 
     # Pre-paint cells:
     if len(frontiers)==0: # if no frontiers are provided, use a random cell
@@ -302,57 +314,61 @@ def generate_maze(width,
     if pre_paint.get("start", []):
         if maze.verbose:
             print("Pre-painting start cells")
-        maze.set_cell(pre_paint.get("start_cells", []), Cell.START)
+        maze.set_cells(pre_paint.get("start_cells", []), Cell.START)
 
     if pre_paint.get("end", []):
         if maze.verbose:
             print("Pre-painting end cells")
-        maze.set_cell(pre_paint.get("end", []), Cell.END)
+        maze.set_cells(pre_paint.get("end", []), Cell.END)
 
     if pre_paint.get("passage", []):
         if maze.verbose:
             print("Pre-painting passage cells")
-        maze.set_cell(pre_paint.get("passage", []), Cell.PASSAGE)
+        maze.set_cells(pre_paint.get("passage", []), Cell.PASSAGE)
 
     if pre_paint.get("wall", []):
         if maze.verbose:
             print("Pre-painting wall cells")
-        maze.set_cell(pre_paint.get("wall", []), Cell.WALL)
+        maze.set_cells(pre_paint.get("wall", []), Cell.WALL)
 
     if pre_paint.get("hardwall", []):
         if maze.verbose:
             print("Pre-painting hardwall cells")
-        maze.set_cell(pre_paint.get("hardwall", []), Cell.HARDWALL)
+        maze.set_cells(pre_paint.get("hardwall", []), Cell.HARDWALL)
 
     if pre_paint.get("wormhole_a", []):
         if maze.verbose:
             print("Pre-painting wormhole A cells")
-        maze.set_cell(pre_paint.get("wormhole_a", []), Cell.WORMHOLE_A)
+        maze.set_cells(pre_paint.get("wormhole_a", []), Cell.WORMHOLE_A)
 
     if pre_paint.get("wormhole_b", []):
         if maze.verbose:
             print("Pre-painting wormhole B cells")
-        maze.set_cell(pre_paint.get("wormhole_b", []), Cell.WORMHOLE_B)
+        maze.set_cells(pre_paint.get("wormhole_b", []), Cell.WORMHOLE_B)
 
     if pre_paint.get("wormhole_c", []):
         if maze.verbose:
             print("Pre-painting wormhole C cells")
-        maze.set_cell(pre_paint.get("wormhole_c", []), Cell.WORMHOLE_C)
+        maze.set_cells(pre_paint.get("wormhole_c", []), Cell.WORMHOLE_C)
 
     if pre_paint.get("wormhole_d", []):
         if maze.verbose:
             print("Pre-painting wormhole D cells")
-        maze.set_cell(pre_paint.get("wormhole_d", []), Cell.WORMHOLE_D)
+        maze.set_cells(pre_paint.get("wormhole_d", []), Cell.WORMHOLE_D)
 
     if pre_paint.get("wormhole_e", []):
         if maze.verbose:
             print("Pre-painting wormhole E cells")
-        maze.set_cell(pre_paint.get("wormhole_e", []), Cell.WORMHOLE_E)
+        maze.set_cells(pre_paint.get("wormhole_e", []), Cell.WORMHOLE_E)
 
     if pre_paint.get("wormhole_f", []):
         if maze.verbose:
             print("Pre-painting wormhole F cells")
-        maze.set_cell(pre_paint.get("wormhole_f", []), Cell.WORMHOLE_F)
+        maze.set_cells(pre_paint.get("wormhole_f", []), Cell.WORMHOLE_F)
+
+    # Add a border around the maze
+    if hardwall_border:
+        maze._draw_border()
 
     # Dig the maze
     maze.build(frontiers)
@@ -361,67 +377,84 @@ def generate_maze(width,
     if pos_paint.get("start", []):
         if maze.verbose:
             print("Post-painting start cells")
-        maze.set_cell(pos_paint.get("start", []), Cell.START)
+        maze.set_cells(pos_paint.get("start", []), Cell.START)
 
     if pos_paint.get("end", []):
         if maze.verbose:
             print("Post-painting end cells")
-        maze.set_cell(pos_paint.get("end", []), Cell.END)
+        maze.set_cells(pos_paint.get("end", []), Cell.END)
 
     if pos_paint.get("passage", []):
         if maze.verbose:
             print("Post-painting passage cells")
-        maze.set_cell(pos_paint.get("passage", []), Cell.PASSAGE)
+        maze.set_cells(pos_paint.get("passage", []), Cell.PASSAGE)
 
     if pos_paint.get("wall", []):
         if maze.verbose:
             print("Post-painting wall cells")
-        maze.set_cell(pos_paint.get("wall", []), Cell.WALL)
+        maze.set_cells(pos_paint.get("wall", []), Cell.WALL)
 
     if pos_paint.get("hardwall", []):
         if maze.verbose:
             print("Post-painting hardwall cells")
-        maze.set_cell(pos_paint.get("hardwall", []), Cell.HARDWALL)
+        maze.set_cells(pos_paint.get("hardwall", []), Cell.HARDWALL)
 
     if pos_paint.get("wormhole_a", []):
         if maze.verbose:
             print("Post-painting wormhole A cells")
-        maze.set_cell(pos_paint.get("wormhole_a", []), Cell.WORMHOLE_A)
+        maze.set_cells(pos_paint.get("wormhole_a", []), Cell.WORMHOLE_A)
 
     if pos_paint.get("wormhole_b", []):
         if maze.verbose:
             print("Post-painting wormhole B cells")
-        maze.set_cell(pos_paint.get("wormhole_b", []), Cell.WORMHOLE_B)
+        maze.set_cells(pos_paint.get("wormhole_b", []), Cell.WORMHOLE_B)
 
     if pos_paint.get("wormhole_c", []):
         if maze.verbose:
             print("Post-painting wormhole C cells")
-        maze.set_cell(pos_paint.get("wormhole_c", []), Cell.WORMHOLE_C)
+        maze.set_cells(pos_paint.get("wormhole_c", []), Cell.WORMHOLE_C)
 
     if pos_paint.get("wormhole_d", []):
         if maze.verbose:
             print("Post-painting wormhole D cells")
-        maze.set_cell(pos_paint.get("wormhole_d", []), Cell.WORMHOLE_D)
+        maze.set_cells(pos_paint.get("wormhole_d", []), Cell.WORMHOLE_D)
 
     if pos_paint.get("wormhole_e", []):
         if maze.verbose:
             print("Post-painting wormhole E cells")
-        maze.set_cell(pos_paint.get("wormhole_e", []), Cell.WORMHOLE_E)
+        maze.set_cells(pos_paint.get("wormhole_e", []), Cell.WORMHOLE_E)
 
     if pos_paint.get("wormhole_f", []):
         if maze.verbose:
             print("Post-painting wormhole F cells")
-        maze.set_cell(pos_paint.get("wormhole_f", []), Cell.WORMHOLE_F)
+        maze.set_cells(pos_paint.get("wormhole_f", []), Cell.WORMHOLE_F)
 
     return maze
 
+def create_points(xi, yi, xf, yf):
+    """Create a list of points from xi, yi to xf, yf."""
+    return [(x, y) for x in range(xi, xf) for y in range(yi, yf)]
+
 if __name__ == "__main__":
-    maze = generate_maze(66, 41, verbose=False,
-                         pre_paint={"hardwall":[(10,10), (10,30), (30,10), (30,30)]},
-                         pos_paint={"start":[(10,1)], "end":[(1,10)],
-                                    "wormhole_a":[(5,2)], "wormhole_b":[(39,1)],
-                                    "wormhole_c":[(29,12)], "wormhole_d":[(1,9)],
-                                    "wormhole_e":[(15,8)], "wormhole_f":[(23,3)]}
-    )
+    width, height = 47, 41
+    pre_paint={
+        "hardwall":create_points(0, 0, width, 1) + create_points(0, 0, 1, height) + create_points(0, height-1, width, height) + create_points(width-1, 0, width, height),
+        }
+    pos_paint={
+        "start":[(0,1)],
+        "end":[(width-1, 1)],
+        "wormhole_a":[(5,2)],
+        "wormhole_b":[(39,1)],
+        "wormhole_c":[(29,12)],
+        "wormhole_d":[(1,9)],
+        "wormhole_e":[(15,8)],
+        "wormhole_f":[(23,3)]}
+
+    maze = generate_maze(dim=(width, height),
+                         frontiers=[(0, 1)],
+                         verbose=False,
+                         hardwall_border=True,
+                         pre_paint=pre_paint,
+                         pos_paint=pos_paint)
     maze.image()
 
